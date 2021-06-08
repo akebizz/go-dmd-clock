@@ -219,11 +219,19 @@ public class AnimationInterpolator {
 					}
 					// both are neither True or False, then use criterium of
 					// vector length, shorter equals better
-					if ((ho && lo) || (!ho && !lo)) {
-						if (dlengthLow < dlengthHigh) {
-							direction = false;
-						} else {
+					if (ho == lo) {
+						if (dlengthLow < 1) {
 							direction = true;
+						} else {
+							if (dlengthHigh < 1) {
+								direction = false;
+							} else {
+								if (dlengthLow < dlengthHigh) {
+									direction = false;
+								} else {
+									direction = true;
+								}
+							}
 						}
 					}
 					int ppc = 0;
