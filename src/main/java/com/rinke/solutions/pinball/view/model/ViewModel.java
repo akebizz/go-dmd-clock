@@ -18,7 +18,6 @@ import com.rinke.solutions.databinding.ViewBinding;
 import com.rinke.solutions.pinball.CutInfo;
 import com.rinke.solutions.pinball.DMD;
 import com.rinke.solutions.pinball.DmdSize;
-import com.rinke.solutions.pinball.ScalerType;
 import com.rinke.solutions.pinball.animation.Animation;
 import com.rinke.solutions.pinball.animation.Animation.EditMode;
 import com.rinke.solutions.pinball.animation.CompiledAnimation;
@@ -45,15 +44,14 @@ public class ViewModel extends AbstractModel {
 	}
 
 	public int numberOfHashButtons = 4;
-	@Value public int numberOfColors = 16;
-	@Value public int noOfPlanesWhenCutting = 4;
+	@Value public int numberOfColors = 64;
+	@Value public int noOfPlanesWhenCutting = 6;
 	public boolean has4PlanesRecording = false;
 	
 	public boolean dirty;
 	public DmdSize dmdSize;
 	public DmdSize srcDmdSize;
 	public DmdSize prjDmdSize;
-	public ScalerType scalerType;
 	public String pin2dmdAdress;
 	public String projectFilename;
 	public CutInfo cutInfo = new CutInfo();
@@ -83,7 +81,6 @@ public class ViewModel extends AbstractModel {
 		setSrcDmdSize(prjSize);
 		setSelectedPalette( paletteMap.get(0) );
 		setPin2dmdAdress( address );
-		setScalerType(ScalerType.fromOrdinal(config.getInteger(Config.SCALERTYPE,1)));
 		setProjectFilename(null);
 		setDirty(false);
 		Palette.getDefaultPalettes(numberOfColors).stream().forEach(p->paletteMap.put(p.index, p));
@@ -198,6 +195,8 @@ public class ViewModel extends AbstractModel {
 	@ViewBinding public int minFrame;
 	@ViewBinding public int selectedFrame;
 	@ViewBinding public int selectedLinkFrame;
+	public String selectedLinkRecordingName;
+	
 	public int linkedFrameOffset = 0;
 	@ViewBinding public int maxFrame;
 	public int frameIncrement;
@@ -697,10 +696,6 @@ public class ViewModel extends AbstractModel {
 
 	public void setLoadedAniVersion(int loadedAniVersion) {
 		firePropertyChange("loadedAniVersion", this.loadedAniVersion, this.loadedAniVersion = loadedAniVersion);
-	}
-
-	public void setScalerType(ScalerType scalerType) {
-		firePropertyChange("scalerType", this.scalerType, this.scalerType = scalerType);
 	}
 
 	public void setLinkedFrameOffset(int linkedFrameOffset) {

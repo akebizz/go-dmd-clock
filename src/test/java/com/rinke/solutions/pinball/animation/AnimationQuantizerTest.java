@@ -10,7 +10,6 @@ import org.junit.Test;
 import com.rinke.solutions.pinball.AnimationActionHandler;
 import com.rinke.solutions.pinball.DMD;
 import com.rinke.solutions.pinball.DmdSize;
-import com.rinke.solutions.pinball.ScalerType;
 import com.rinke.solutions.pinball.model.Mask;
 import com.rinke.solutions.pinball.model.Palette;
 import com.rinke.solutions.pinball.model.Plane;
@@ -27,6 +26,7 @@ public class AnimationQuantizerTest {
 		uut = new AnimationQuantizer();
 		vm = new ViewModel();
 		vm.dmdSize = DmdSize.Size128x32;
+		vm.srcDmdSize = DmdSize.Size128x32;
 		handler = new AnimationActionHandler(vm);
 	}
 

@@ -125,7 +125,13 @@ public class AnimationHandler implements Runnable {
 						int frameNo = 0;
 						if (vm.selectedScene != null && vm.selectedScene.getActualFrame().frameLink != null) {
             				linkedAnimation = vm.recordings.get(vm.selectedScene.getActualFrame().frameLink.recordingName);
-            				frameNo = vm.selectedScene.getActualFrame().frameLink.frame;
+            				frameNo = vm.selectedScene.getActualFrame().frameLink.frame + vm.linkedFrameOffset;
+						} else if (vm.selectedScene != null && vm.selectedScene.getPreviousFrame().frameLink != null) {
+							linkedAnimation = vm.recordings.get(vm.selectedScene.getPreviousFrame().frameLink.recordingName);
+            				frameNo = vm.selectedScene.getPreviousFrame().frameLink.frame + 1 + vm.linkedFrameOffset;
+						} else if (vm.selectedScene != null && vm.selectedScene.getNextFrame().frameLink != null) {
+							linkedAnimation = vm.recordings.get(vm.selectedScene.getNextFrame().frameLink.recordingName);
+            				frameNo = vm.selectedScene.getNextFrame().frameLink.frame - 1 + vm.linkedFrameOffset;
             			} else {
             				linkedAnimation = vm.recordings.get(link.associatedRecordingName);
     						frameNo =  link.startFrame + actFrame + vm.linkedFrameOffset;
@@ -159,7 +165,9 @@ public class AnimationHandler implements Runnable {
 	                        if(cani.frames.get(0).planes.size()==24) {
 	                        	vm.setPreviewDmdPalette(vm.previewPalettes.get(5));
 	                        }
-	                        	
+	                        
+	                        vm.setLinkVal(linkedAnimation.getDesc()+":"+frameNo);
+							vm.selectedLinkRecordingName = linkedAnimation.getDesc();
 		                	vm.previewDMD.setFrame(previewRes);
 	                	}
 					}
@@ -323,7 +331,7 @@ public class AnimationHandler implements Runnable {
 	    forceRerender = true;
 	    vm.dmd.setMask(getCurrentMask(vm.detectionMaskActive));
 	    log.debug("setpos {} @ {} with mask {}", pos, anis.get(index).getDesc(), dmd.getFrame().mask);
-        run();
+        //run();
 	}
 	
 	public void forceRerender() {
@@ -343,7 +351,7 @@ public class AnimationHandler implements Runnable {
 		if( !anis.isEmpty() ) {
 			forceRerender = true;
 		    anis.get(index).restart();
-		    run();
+		    //run();
 		} else {
 			startClock();
 		}

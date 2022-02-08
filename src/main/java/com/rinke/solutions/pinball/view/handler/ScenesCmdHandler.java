@@ -18,6 +18,7 @@ import com.rinke.solutions.pinball.animation.Animation.EditMode;
 import com.rinke.solutions.pinball.animation.CompiledAnimation;
 import com.rinke.solutions.pinball.animation.CompiledAnimation.RecordingLink;
 import com.rinke.solutions.pinball.model.Bookmark;
+import com.rinke.solutions.pinball.model.FrameLink;
 import com.rinke.solutions.pinball.model.PalMapping;
 import com.rinke.solutions.pinball.ui.EditLinkView;
 import com.rinke.solutions.pinball.util.MessageUtil;
@@ -42,6 +43,7 @@ public class ScenesCmdHandler extends AbstractListCmdHandler implements ViewBind
 	}
 	
 	public void onSelectedSceneChanged(CompiledAnimation o, CompiledAnimation nextScene) {
+		
 		log.info("onSceneSelectionChanged: {}", nextScene);
 		vm.setLinkedFrameOffset(0);
 		Animation current = o;
@@ -51,7 +53,7 @@ public class ScenesCmdHandler extends AbstractListCmdHandler implements ViewBind
 		
 		if( current != null ) {
 			vm.scenesPosMap.put(current.getDesc(), current.actFrame);
-			if (vm.dmdSize.planeSize == vm.prjDmdSize.planeSize)
+			if ((vm.dmdSize.planeSize == current.width*current.height/8) && vm.detectionMaskActive == false)
 				current.commitDMDchanges(vm.dmd);
 			vm.setDirty(vm.dirty | current.isDirty());
 		}
@@ -77,6 +79,7 @@ public class ScenesCmdHandler extends AbstractListCmdHandler implements ViewBind
 			if( nextScene.getRecordingLink() != null) {
 				RecordingLink rl = nextScene.getRecordingLink();
 				vm.setLinkVal(rl.associatedRecordingName+":"+rl.startFrame);
+				vm.selectedLinkRecordingName = rl.associatedRecordingName;
 			} else {
 				vm.setLinkVal("-");
 			}
@@ -115,8 +118,6 @@ public class ScenesCmdHandler extends AbstractListCmdHandler implements ViewBind
 			vm.dmd.setNumberOfPlanes(numberOfPlanes);
 			vm.setDmdSize(DmdSize.fromWidthHeight(nextScene.width, nextScene.height));
 
-			vm.setPaletteToolPlanes(vm.layerMaskActive||vm.detectionMaskActive?1:numberOfPlanes);
-
 			setPlayingAni(nextScene, vm.scenesPosMap.getOrDefault(nextScene.getDesc(), 0));
 			maskHandler.updateDrawingEnabled();
 			if( m.haveLocalMask || m.haveSceneDetectionMasks || vm.selectedEditMode.pullFrameDataFromAssociatedRecording) {
@@ -125,6 +126,8 @@ public class ScenesCmdHandler extends AbstractListCmdHandler implements ViewBind
 			} else {
 				vm.setHashVal("");
 			}
+			
+			vm.setPaletteToolPlanes(vm.layerMaskActive||vm.detectionMaskActive?1:numberOfPlanes);
 			
 			if (vm.selectedEditMode.pullFrameDataFromAssociatedRecording && vm.selectedScene.getRecordingLink() == null) {
 				messageUtil.warn("Warning", "Linked Recording missing !!\nCalculated hashes may be invalid.");
@@ -138,6 +141,7 @@ public class ScenesCmdHandler extends AbstractListCmdHandler implements ViewBind
 		// v.goDmdGroup.updateAniModel(nextScene);
 		vm.setDeleteSceneEnabled(nextScene!=null);
 		vm.setBtnSetScenePalEnabled(nextScene!=null);
+		animationHandler.forceRerender();
 	}
 	
 	public void onDeleteUnusedScenes() {
@@ -199,6 +203,7 @@ public class ScenesCmdHandler extends AbstractListCmdHandler implements ViewBind
 					nameExists = true;
 			}
 			if ( nameExists != true && (i != -1)) vm.inputFiles.remove(i);
+			vm.setDirty(true);
 		} else {
 			messageUtil.warn("Scene cannot be deleted", "It is used by "+res);
 		}
@@ -206,6 +211,7 @@ public class ScenesCmdHandler extends AbstractListCmdHandler implements ViewBind
 
 	public void onSortScenes() {
 		onSortAnimations(vm.scenes);
+		vm.setDirty(true);
 	}
 	
 	// called when scene gets renamed
@@ -220,7 +226,8 @@ public class ScenesCmdHandler extends AbstractListCmdHandler implements ViewBind
 					break;
 				}
 			}
-		}	
+		}
+		vm.setDirty(true);
 	}
 
 	/**
@@ -236,6 +243,7 @@ public class ScenesCmdHandler extends AbstractListCmdHandler implements ViewBind
 				p.frameSeqName = newKey;
 			}
 		});
+		vm.setDirty(true);
 	}
 
 	public void onSetScenePalette() {
@@ -252,6 +260,7 @@ public class ScenesCmdHandler extends AbstractListCmdHandler implements ViewBind
 				}
 			}
 		}
+		vm.setDirty(true);
 	}
 
 	public void onRenameScene(String oldName, String newName){
@@ -275,12 +284,17 @@ public class ScenesCmdHandler extends AbstractListCmdHandler implements ViewBind
 			}
 		editLink.open();
 		if( editLink.okClicked() && vm.selectedScene != null) {
-			vm.selectedScene.setRecordingLink(editLink.getRecordingLink());
+			if (vm.selectedScene.getActFrame() == 0 || vm.selectedScene.getRecordingLink() == null)
+				vm.selectedScene.setRecordingLink(editLink.getRecordingLink());
 			if (vm.selectedScene.getActualFrame().frameLink != null) {
 				vm.selectedScene.getActualFrame().frameLink.recordingName = editLink.getRecordingLink().associatedRecordingName;
 				vm.selectedScene.getActualFrame().frameLink.frame = editLink.getRecordingLink().startFrame; 
+			} else {
+				vm.selectedScene.getActualFrame().frameLink = new FrameLink(editLink.getRecordingLink().associatedRecordingName, editLink.getRecordingLink().startFrame);
 			}
 		}
+        animationHandler.forceRerender();
+ 		vm.setDirty(true);
 	}
 	
 	public void onUnlockSceneMasks() {

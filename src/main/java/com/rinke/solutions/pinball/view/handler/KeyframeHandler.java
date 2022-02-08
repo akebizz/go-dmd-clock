@@ -14,8 +14,11 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.rinke.solutions.beans.Autowired;
 import com.rinke.solutions.beans.Bean;
+import com.rinke.solutions.pinball.DMD;
 import com.rinke.solutions.pinball.animation.Animation;
+import com.rinke.solutions.pinball.animation.FrameScaler;
 import com.rinke.solutions.pinball.animation.Animation.EditMode;
+import com.rinke.solutions.pinball.model.Frame;
 import com.rinke.solutions.pinball.model.FrameLink;
 import com.rinke.solutions.pinball.model.PalMapping;
 import com.rinke.solutions.pinball.model.PaletteType;
@@ -70,12 +73,23 @@ public class KeyframeHandler extends AbstractCommandHandler implements ViewBindi
 			return;
 		} 
 		
-		if (vm.selectedKeyFrame != null && Arrays.equals(vm.selectedKeyFrame.crc32,vm.hashes.get(vm.selectedHashIndex)) && !vm.selectedKeyFrame.frameSeqName.contentEquals(vm.selectedFrameSeq.getDesc()) && !SwitchMode.EVENT.equals(switchMode)) {
-			vm.selectedKeyFrame.frameSeqName = ani.getDesc();
-			vm.selectedKeyFrame.switchMode = switchMode;
-			vm.selectedKeyFrame.palIndex = ani.getPalIndex();
-			messageUtil.warn("Keyframe updated", "Selected keyframe updated with new scene");
-			return;
+		if (vm.selectedKeyFrame != null && Arrays.equals(vm.selectedKeyFrame.crc32,vm.hashes.get(vm.selectedHashIndex)) && !SwitchMode.EVENT.equals(switchMode)) {
+			if (!vm.selectedKeyFrame.frameSeqName.equals(ani.getDesc())) {
+				vm.selectedKeyFrame.frameSeqName = ani.getDesc();
+				vm.selectedKeyFrame.switchMode = switchMode;
+				vm.selectedKeyFrame.palIndex = ani.getPalIndex();
+				messageUtil.warn("Keyframe updated", "Selected keyframe updated with new scene");
+				vm.setDirty(true);
+				return;
+			}
+			if (!vm.selectedKeyFrame.animationName.equals(vm.selectedRecording.getDesc()) || vm.selectedKeyFrame.frameIndex != vm.selectedRecording.actFrame) {
+				vm.selectedKeyFrame.animationName = vm.selectedRecording.getDesc();
+				vm.selectedKeyFrame.frameIndex = vm.selectedRecording.actFrame;
+				messageUtil.warn("Keyframe updated", "Selected keyframe updated with new recording link");
+				vm.setDirty(true);
+				return;
+			}
+
 		}
 
 		String prompt = getName(switchMode, ani);
@@ -144,6 +158,7 @@ public class KeyframeHandler extends AbstractCommandHandler implements ViewBindi
 		String duplicateName = checkForDuplicateKeyFrames(palMapping);
 		if (duplicateName == null) {
 			vm.keyframes.put(palMapping.name,palMapping);
+			vm.setDirty(true);
 		} else {
 			messageUtil.warn("duplicate hash", "There is already Keyframe \"" + duplicateName + "\" that uses the same hash");
 		}
@@ -230,6 +245,7 @@ public class KeyframeHandler extends AbstractCommandHandler implements ViewBindi
 		}
 		vm.dmd.clear();
 		vm.setSelectedScene(null);
+		vm.setDirty(true);
 	}
 	
 	public void onFixKeyframe() {
@@ -240,55 +256,107 @@ public class KeyframeHandler extends AbstractCommandHandler implements ViewBindi
 		}
 	}
 	
-	public List<String> checkAndFixKeyframes(){
-		List<String> res = new ArrayList<>();
-		for( PalMapping pm : vm.keyframes.values()) {
-			
-			vm.setDetectionMaskActive(true);
-			for (int msk = 0; msk < vm.masks.size(); msk++) {
-				if (vm.masks.get(msk).locked) {
-					vm.dmd.setMask(vm.masks.get(msk));
-					vm.setSelectedMaskNumber(msk);
-					hashCmdHandler.updateHashes(vm.dmd.getFrame());
-					for (int idx = 0;idx < vm.hashes.size();idx++) {
-						if(Arrays.equals(pm.crc32, vm.hashes.get(idx))) {
-							res.add(" "+pm.name+String.format(" (M%d)", msk));
+	public List<String> checkAndFixKeyframes(boolean allFrames){
+		
+		if (!allFrames) {
+			List<String> res = new ArrayList<>();
+			Frame f = new Frame(vm.dmd.getFrame());
+			for( PalMapping pm : vm.keyframes.values()) {
+				for (int msk = 0; msk < vm.masks.size(); msk++) {
+					if (vm.masks.get(msk).locked) {
+						f.setMask(vm.masks.get(msk));
+						List<byte[]> hashes = f.getHashes();
+						for (int idx = 0;idx < hashes.size();idx++) {
+							if(Arrays.equals(pm.crc32, hashes.get(idx))) {
+								res.add(" "+pm.name+String.format(" (M%d)", msk));
+								pm.frameIndex = vm.getSelectedFrame();
+								pm.animationName = vm.selectedRecording.getDesc();
+								pm.withMask = true;
+								pm.maskNumber = msk;
+								break;
+							}
+						}
+					}
+				}
+
+				f.setMask(null);
+				List<byte[]> hashes = f.getHashes();
+				for (int idx = 0;idx < hashes.size();idx++) {
+					if(Arrays.equals(pm.crc32, hashes.get(idx))) {
+						res.add(" "+pm.name);
+						if (pm.frameIndex == 0) {
 							pm.frameIndex = vm.getSelectedFrame();
 							pm.animationName = vm.selectedRecording.getDesc();
-							pm.withMask = true;
-							pm.maskNumber = msk;
+						}
+						break;
+					}
+				}
+			}
+			return res;
+		} else {
+			List<String> res = new ArrayList<>();
+			DMD tmp = new DMD(vm.selectedRecording.width,vm.selectedRecording.height);
+			for (int i = 0; i < vm.selectedRecording.end; i++) {
+				Frame f = new Frame(vm.selectedRecording.render(i, tmp, true));
+				for( PalMapping pm : vm.keyframes.values()) {
+					for (int msk = 0; msk < vm.masks.size(); msk++) {
+						if (vm.masks.get(msk).locked) {
+							f.setMask(vm.masks.get(msk));
+							List<byte[]> hashes = f.getHashes();
+							for (int idx = 0;idx < hashes.size();idx++) {
+								if(Arrays.equals(pm.crc32, hashes.get(idx))) {
+									res.add(" "+pm.name+String.format(" (M%d)", msk));
+									if (pm.frameIndex == 0){
+										pm.frameIndex = i;
+										pm.animationName = vm.selectedRecording.getDesc();
+										pm.withMask = true;
+										pm.maskNumber = msk;
+									}
+									break;
+								}
+							}
+						}
+					}
+		
+					f.setMask(null);
+					List<byte[]> hashes = f.getHashes();
+					for (int idx = 0;idx < hashes.size();idx++) {
+						if(Arrays.equals(pm.crc32, hashes.get(idx))) {
+							res.add(" "+pm.name);
+							if (pm.frameIndex == 0) {
+								pm.frameIndex = i;
+								pm.animationName = vm.selectedRecording.getDesc();
+							}
 							break;
 						}
 					}
 				}
 			}
-			vm.setDetectionMaskActive(false);
-
-			hashCmdHandler.updateHashes(vm.dmd.getFrame());
-			for (int idx = 0;idx < vm.hashes.size();idx++) {
-				if(Arrays.equals(pm.crc32, vm.hashes.get(idx))) {
-					res.add(" "+pm.name);
-					if (pm.frameIndex == 0) {
-						pm.frameIndex = vm.getSelectedFrame();
-						pm.animationName = vm.selectedRecording.getDesc();
-					}
-					break;
-				}
-			}
-
+			return res;
 		}
-		return res;
 	}
 	
+	public void onScanRecordingKeyframes() {
+		
+		List<String> res = null;
+		if (vm.selectedRecording != null)
+			res = checkAndFixKeyframes(true);
+		return;
+
+	}
+	
+	
 	public void onCheckKeyframe() {
-		List<String> res = checkAndFixKeyframes();
-		if (res.size() != 0) {
+		
+		List<String> res = null;
+		res = checkAndFixKeyframes(false);
+		if (res.size() != 0)
 			messageUtil.warn("Keyframe found", "The selected frame gets triggered by Keyframe:\n"+res);
-			}
 		else
 			messageUtil.warn("No Keyframe found", "No Keyframe found for the selected frame.");
-	}
+		return;
 
+	}
 
 	String checkForDuplicateKeyFrames(PalMapping palMapping) {
 		for (PalMapping p : vm.keyframes.values()) {
@@ -301,11 +369,23 @@ public class KeyframeHandler extends AbstractCommandHandler implements ViewBindi
 		}
 		return null;
 	}
+	
+	public void onRenameKeyframe(String oldName, String newName) {
+		if (!oldName.equals(newName)) {
+			PalMapping old = vm.keyframes.remove(oldName);
+			if( old != null ) { 
+				old.name = newName;
+				vm.keyframes.put(newName, old);
+			}
+			vm.setDirty(true);
+		}
+	}
 
 	public void onDeleteKeyframe() {
-		while (vm.selectedKeyFrame != null)
+		while (vm.selectedKeyFrame != null && vm.keyframes.containsKey(vm.selectedKeyFrame.name))
 			vm.keyframes.remove(vm.selectedKeyFrame.name);
 		checkReleaseMask();
+		vm.setDirty(true);
 	}
 	/**
 	 * checks all pal mappings and releases masks if not used anymore
@@ -351,6 +431,7 @@ public class KeyframeHandler extends AbstractCommandHandler implements ViewBindi
 		for (Entry<String, PalMapping> entry : list) {
 			vm.keyframes.put(entry.getKey(), (PalMapping)entry.getValue());
 		}
+		vm.setDirty(true);
 	}
 
 	public void onSelectedKeyFrameChanged(PalMapping old, PalMapping nk) {
@@ -442,6 +523,7 @@ public class KeyframeHandler extends AbstractCommandHandler implements ViewBindi
 			vm.selectedKeyFrame.durationInMillis = n;
 			vm.selectedKeyFrame.durationInFrames = (int) vm.selectedKeyFrame.durationInMillis / FRAME_RATE;
 		}
+		vm.setDirty(true);
 	}
 
 	public void onSelectedFrameSeqChanged(Animation old, Animation ani) {
@@ -480,13 +562,19 @@ public class KeyframeHandler extends AbstractCommandHandler implements ViewBindi
 			} else {
 				if( vm.selectedEditMode.haveLocalMask || vm.selectedEditMode.haveSceneDetectionMasks || vm.selectedEditMode.pullFrameDataFromAssociatedRecording) {
 					// Update hash in scene and lock mask (for scene masks)
+					for (int i = 0; i < vm.selectedScene.frames.size(); i++) {
+						if(Arrays.equals(hash,vm.selectedScene.frames.get(i).crc32)) {
+							messageUtil.warn("duplicate hash", "There is already frame " + i + " in the scene that uses the same hash");
+							return;
+						}
+					}
 					vm.selectedScene.getActualFrame().setHash(hash);
 					if (vm.selectedScene.getRecordingLink() != null)
 						if (vm.selectedScene.getActualFrame().frameLink != null) {
-							vm.selectedScene.getActualFrame().frameLink.recordingName = vm.selectedScene.getRecordingLink().associatedRecordingName;
+							vm.selectedScene.getActualFrame().frameLink.recordingName = vm.selectedLinkRecordingName;
 							vm.selectedScene.getActualFrame().frameLink.frame = vm.selectedLinkFrame;
 						} else {
-							vm.selectedScene.getActualFrame().frameLink = new FrameLink(vm.selectedScene.getRecordingLink().associatedRecordingName,vm.selectedLinkFrame);
+							vm.selectedScene.getActualFrame().frameLink = new FrameLink(vm.selectedLinkRecordingName,vm.selectedLinkFrame);
 						}
 					vm.setHashVal(HashCmdHandler.getPrintableHashes(hash));
 					if( vm.detectionMaskActive && vm.selectedEditMode.haveSceneDetectionMasks) {
@@ -497,7 +585,19 @@ public class KeyframeHandler extends AbstractCommandHandler implements ViewBindi
 					}
 				}
 			}
+			vm.setDirty(true);
 		}
 	}
+	
+	public void onResetHash() {
+		byte[] hash = {0,0,0,0};
+		if( vm.selectedEditMode.haveLocalMask || vm.selectedEditMode.haveSceneDetectionMasks || vm.selectedEditMode.pullFrameDataFromAssociatedRecording) {
+			vm.selectedScene.getActualFrame().setHash(hash);
+			vm.selectedScene.getActualFrame().frameLink = null;
+			vm.setHashVal(HashCmdHandler.getPrintableHashes(hash));
+		}
+		vm.setDirty(true);
+	}
+
 
 }

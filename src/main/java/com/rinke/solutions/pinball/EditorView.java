@@ -10,7 +10,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
 
@@ -90,8 +89,6 @@ import com.rinke.solutions.pinball.widget.PaletteTool;
 import com.rinke.solutions.pinball.widget.RectTool;
 import com.rinke.solutions.pinball.widget.SelectTool;
 import com.rinke.solutions.pinball.widget.SetPixelTool;
-import org.eclipse.swt.events.SelectionAdapter;
-import org.eclipse.swt.events.SelectionEvent;
 
 @Slf4j
 public class EditorView implements MainView {
@@ -465,6 +462,10 @@ public class EditorView implements MainView {
 		mntmDeleteUnusedScenes.setText("Delete Unused Scenes");
 		mntmDeleteUnusedScenes.addListener(SWT.Selection, e -> dispatchCmd(DELETE_UNUSED_SCENES));
 		
+		MenuItem mntmScanRecordingForKeyframes = new MenuItem(menu_2, SWT.NONE);
+		mntmScanRecordingForKeyframes.setText("Scan Recording for Keyframes");
+		mntmScanRecordingForKeyframes.addListener(SWT.Selection, e -> dispatchCmd(SCAN_RECORDING));
+		
 		MenuItem mntmRecentAnimationsItem = new MenuItem(menu_2, SWT.CASCADE);
 		mntmRecentAnimationsItem.setText("Recent Animations");
 				
@@ -477,11 +478,25 @@ public class EditorView implements MainView {
 		mntmPlayFullscreen.setText("Play Fullscreen");
 		mntmPlayFullscreen.setAccelerator(SWT.MOD1 + SWT.F11);
 		mntmPlayFullscreen.addListener(SWT.Selection, e -> playFullScreen() );
-
+		
+		MenuItem mntmNextFrame = new MenuItem(menu_2, SWT.NONE);
+		mntmNextFrame.setText("Move to Next Frame\tCtrl->");
+		mntmNextFrame.setAccelerator(SWT.MOD1 + '>');
+		mntmNextFrame.addListener(SWT.Selection, e -> dispatchCmd(NEXT_FRAME));
+		
+		MenuItem mntmPrevFrame = new MenuItem(menu_2, SWT.NONE);
+		mntmPrevFrame.setText("Move to Previous Frame\tShift-Ctrl->");
+		mntmPrevFrame.setAccelerator(SWT.MOD1|SWT.MOD2 + '>');
+		mntmPrevFrame.addListener(SWT.Selection, e -> dispatchCmd(PREV_FRAME));
+		
 		MenuItem mntmExportAnimation = new MenuItem(menu_2, SWT.NONE);
 		mntmExportAnimation.setText("Export Scene as GIF");	
 		mntmExportAnimation.addListener(SWT.Selection, e -> dispatchCmd(EXPORT_GIF));
 
+		MenuItem mntmExportAnimationRaw = new MenuItem(menu_2, SWT.NONE);
+		mntmExportAnimationRaw.setText("Export Scene as RAW");	
+		mntmExportAnimationRaw.addListener(SWT.Selection, e -> dispatchCmd(EXPORT_RAW));
+		
 		MenuItem mntmExportForGodmd = new MenuItem(menu_2, SWT.NONE);
 		mntmExportForGodmd.setText("Export for goDMD ...");
 		mntmExportForGodmd.addListener(SWT.Selection, e-> dispatchCmd(EXPORT_GO_DMD));
@@ -672,7 +687,9 @@ public class EditorView implements MainView {
 		// boud keyframeTableViewer.addSelectionChangedListener(event -> ed.onKeyframeChanged(event));
 
 		TableViewerColumn viewerColumn = new TableViewerColumn(keyframeTableViewer, SWT.LEFT);
-		viewerColumn.setEditingSupport(new GenericTextCellEditor<PalMapping>(keyframeTableViewer, e -> e.name, (e, v) -> { e.name = v; }));
+		viewerColumn.setEditingSupport(new GenericTextCellEditor<PalMapping>(keyframeTableViewer, e -> e.name, (e, v) -> { 
+			dispatchCmd(RENAME_KEYFRAME, e.name, v);
+			}));
 
 		viewerColumn.getColumn().setWidth(colWidth);
 		viewerColumn.setLabelProvider(new IconLabelProvider<PalMapping>(shell, o -> Pair.of(o.switchMode.name().toLowerCase(), o.name ) ));
@@ -1473,7 +1490,13 @@ public class EditorView implements MainView {
 		btnSetHash = new Button(grpKeyframe, SWT.NONE);
 		btnSetHash.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false, 1, 1));
 		btnSetHash.setText("Set Hash");
-		btnSetHash.addListener(SWT.Selection, e -> dispatchCmd(SET_HASH));
+		btnSetHash.setToolTipText("CTRL-click to reset hash");
+		btnSetHash.addListener(SWT.Selection, e->{
+			if (( e.stateMask & SWT.CTRL) != 0)
+				dispatchCmd(RESET_HASH);
+			else
+				dispatchCmd(SET_HASH);
+		});
 		
 		btnAddKeyframe = new Button(grpKeyframe, SWT.NONE);
 		btnAddKeyframe.setToolTipText("Adds a key frame that switches palette");

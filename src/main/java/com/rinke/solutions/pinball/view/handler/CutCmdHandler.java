@@ -9,7 +9,6 @@ import com.rinke.solutions.beans.Bean;
 import com.rinke.solutions.beans.Value;
 import com.rinke.solutions.pinball.Constants;
 import com.rinke.solutions.pinball.OpenCVLoader;
-import com.rinke.solutions.pinball.ScalerType;
 import com.rinke.solutions.pinball.animation.Animation;
 import com.rinke.solutions.pinball.animation.Animation.EditMode;
 import com.rinke.solutions.pinball.animation.AnimationInterpolator;
@@ -100,7 +99,7 @@ public class CutCmdHandler extends AbstractCommandHandler implements ViewBinding
 					
 			vm.scenes.put(name, newScene);
 			vm.scenes.refresh();
-
+			vm.setDirty(true);
 		}		
 	}
 	
@@ -122,6 +121,7 @@ public class CutCmdHandler extends AbstractCommandHandler implements ViewBinding
 						
 				vm.scenes.put(name, newScene);
 				vm.scenes.refresh();
+				vm.setDirty(true);
 			}
 		}		
 	}
@@ -138,7 +138,7 @@ public class CutCmdHandler extends AbstractCommandHandler implements ViewBinding
 					
 			vm.scenes.put(name, newScene);
 			vm.scenes.refresh();
-
+			vm.setDirty(true);
 		}		
 	}
 	
@@ -157,6 +157,7 @@ public class CutCmdHandler extends AbstractCommandHandler implements ViewBinding
 			}
 		}
 		vm.scenes.refresh();
+		vm.setDirty(true);
 	}
 
 	String getUniqueName(String name, Set<String> set) {
@@ -177,6 +178,7 @@ public class CutCmdHandler extends AbstractCommandHandler implements ViewBinding
 			log.info("cutting out scene from {}", vm.cutInfo);
 			vm.cutInfo.reset();
 			vm.setMarkStartEnabled(true);
+			vm.setDirty(true);
 		}	
 	}
 	
@@ -185,6 +187,7 @@ public class CutCmdHandler extends AbstractCommandHandler implements ViewBinding
 		if( src != null ) {
 			cutScene(src, src.start, src.end, buildUniqueName(vm.scenes), true);
 			log.info("scaling scene from {}", vm.cutInfo);
+			vm.setDirty(true);
 		}	
 	}
 
@@ -195,6 +198,7 @@ public class CutCmdHandler extends AbstractCommandHandler implements ViewBinding
 		if( src != null ) {
 			add2Scene(src, getSourceAnimation().actFrame);
 			log.info(" adding frame from {}", vm.cutInfo);
+			vm.setDirty(true);
 		}
 		
 	}
@@ -205,6 +209,7 @@ public class CutCmdHandler extends AbstractCommandHandler implements ViewBinding
 		if( src != null ) {
 			splitScene(src);
 			log.info("splitting scene {}", src.getDesc());
+			vm.setDirty(true);
 		}
 	}
 	
@@ -230,9 +235,8 @@ public class CutCmdHandler extends AbstractCommandHandler implements ViewBinding
 	public Animation cutScene(Animation animation, int start, int end, String name, boolean scale) {
 		
 		CompiledAnimation cutScene = animation.cutScene(start, end, vm.noOfPlanesWhenCutting);
-		ScalerType st = ScalerType.fromOrdinal(config.getInteger(Config.SCALERTYPE));
 		if( scale ) {
-			
+			name = animation.getDesc()+"_HD";
 			int res = messageUtil.warn(0, "Scaler Type",
 					"Please select", 
 					"",
@@ -317,9 +321,15 @@ public class CutCmdHandler extends AbstractCommandHandler implements ViewBinding
 					newScene.setRecordingLink(cani.getRecordingLink());
 				else
 					newScene.setRecordingLink(new RecordingLink(animation.getDesc(), animation.actFrame));
+				if (cani.getActualFrame().frameLink != null) {
+					newScene.getActualFrame().frameLink = new FrameLink(cani.frames.get(frameNo).frameLink.recordingName,cani.frames.get(frameNo).frameLink.frame);
+				}
+				System.arraycopy(cani.frames.get(frameNo).crc32, 0, newScene.getActualFrame().crc32, 0, 4);
+				
 					
 			} else {
 				newScene.setRecordingLink(new RecordingLink(animation.getDesc(), animation.actFrame));
+				newScene.getActualFrame().frameLink = new FrameLink(animation.getDesc(), animation.actFrame);
 			}
 
 			vm.scenes.put(name, newScene);
@@ -333,10 +343,9 @@ public class CutCmdHandler extends AbstractCommandHandler implements ViewBinding
 			srcFrame.copyToWithMask(destFrame, Constants.DEFAULT_DRAW_MASK);
 			if( animation instanceof CompiledAnimation ) {
 				CompiledAnimation cani = (CompiledAnimation)animation;
-	            if (cani != null && cani.getRecordingLink() != null)
-	            	destFrame.frameLink = new FrameLink(cani.getRecordingLink().associatedRecordingName,cani.getRecordingLink().startFrame+animation.getActFrame());
-	            else
-	            	destFrame.frameLink = new FrameLink(animation.getDesc(),animation.getActFrame());
+				if (cani.getActualFrame().frameLink != null)
+					destFrame.frameLink = new FrameLink(cani.getActualFrame().frameLink.recordingName,cani.getActualFrame().frameLink.frame);
+				System.arraycopy(cani.getActualFrame().crc32, 0, destFrame.crc32, 0, 4);	
             } else {
             	destFrame.frameLink = new FrameLink(animation.getDesc(),animation.getActFrame());
             }

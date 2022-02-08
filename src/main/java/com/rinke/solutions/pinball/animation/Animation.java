@@ -178,10 +178,11 @@ public class Animation {
 			if( i == start ) tcOffset = frame.timecode;
             targetFrame.timecode -= tcOffset;
             targetFrame.frameLink = null;
-            if (cani != null && cani.getRecordingLink() != null)
-            	targetFrame.frameLink = new FrameLink(cani.getRecordingLink().associatedRecordingName,cani.getRecordingLink().startFrame+i);
-//            else
-//            	targetFrame.frameLink = new FrameLink(this.desc,i);
+            if (cani != null) {
+            	if (cani.frames.get(i).frameLink != null)
+            		targetFrame.frameLink = new FrameLink(cani.frames.get(i).frameLink.recordingName,cani.frames.get(i).frameLink.frame);
+            	System.arraycopy(cani.frames.get(i).crc32, 0, targetFrame.crc32, 0, 4);
+            }
             int marker = targetFrame.planes.size();
             byte[] emptyPlane = new byte[frame.getPlane(0).length];
 			while( targetFrame.planes.size() < actualNumberOfPlanes ) {
@@ -330,10 +331,13 @@ public class Animation {
 		}
 		Properties rendererProps = renderer.getProps();
 		String width = rendererProps.getProperty("width");
+		int planeSize = renderer.getFrames().get(0).getPlane(0).length;
 		if( width!= null && Integer.parseInt(width) != dmd.getWidth()) {
 			int w = Integer.parseInt(rendererProps.getProperty("width"));
 			int h = Integer.parseInt(rendererProps.getProperty("height"));
-			setDimension(w, h);
+			if(w*h/8 == planeSize) {
+				setDimension(w, h);
+			}
 		}
 	}
 	

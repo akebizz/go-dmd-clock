@@ -20,6 +20,7 @@ import com.rinke.solutions.pinball.renderer.ImageUtil;
 import com.rinke.solutions.pinball.swt.SWTClipboard;
 import com.rinke.solutions.pinball.widget.DMDWidget;
 import com.rinke.solutions.pinball.widget.DMDWidget.Rect;
+import com.rinke.solutions.pinball.widget.DrawTool;
 import com.rinke.solutions.pinball.widget.PasteTool;
 
 /**
@@ -37,7 +38,7 @@ public class ClipboardHandler {
 	int width;
 	int height;
 	Palette palette;
-	int dx,dy;
+	int dx,dy,dx2,dy2;
 	
 	/**
 	 * typically instantiated once for the complete editor lifecycle
@@ -66,11 +67,18 @@ public class ClipboardHandler {
 		Frame frame = (Frame) clipboard.getContents("DmdFrameTransfer");
 		dmdWidget.resetSelection();
 		if( frame != null ) {
-			log.debug("dx={}, dy={}", dx, dy);
-			PasteTool pasteTool = new PasteTool(0, width, height,dx,dy);
-			pasteTool.setFrameToPaste(frame);
-			pasteTool.setMaskOnly(dmdWidget.isShowMask());
-			dmdWidget.setDrawTool(pasteTool);
+			if (dmdWidget.isShowMask() && !dmd.getFrame().mask.locked) {
+				dmd.addUndoBuffer();
+				//ImageData imageData = (ImageData) clipboard.getContents("ImageTransfer");
+				//System.arraycopy(imageData.data, 0, dmd.getFrame().mask.data, 0, dmd.getPlaneSize());
+				frame.copyToWithMask(dmd.getFrame(), 0b0001);
+			} else {
+				log.debug("dx={}, dy={}", dx, dy);
+				PasteTool pasteTool = new PasteTool(0, width, height,dx,dy);
+				pasteTool.setFrameToPaste(frame);
+				pasteTool.setMaskOnly(dmdWidget.isShowMask());
+				dmdWidget.setDrawTool(pasteTool);
+			}
 		} else {
 			ImageData imageData = (ImageData) clipboard.getContents("ImageTransfer");
 			if( imageData != null ) {
@@ -78,7 +86,7 @@ public class ClipboardHandler {
 				BufferedImage bufferedImage = ImageUtil.convert(new Image(Display.getCurrent(),imageData));
 				log.info("pasting image from clipboard: {}, hasAlpha: {}", bufferedImage, bufferedImage.getColorModel().hasAlpha() );
 				log.info("target frame no of planes: {}", dmd.getNumberOfPlanes());
-				if( dmd.getNumberOfPlanes() <= 4) {
+				if( dmd.getNumberOfPlanes() <= 6) {
 					Frame res = ImageUtil.convertToFrameWithPalette(bufferedImage, dmd, palette, false);
 					PasteTool pasteTool = new PasteTool(0, width, height,0,0);
 					pasteTool.setFrameToPaste(res);
@@ -118,7 +126,7 @@ public class ClipboardHandler {
 						}
 					}
 				}
-			} else if( dmd.getNumberOfPlanes() > 5) {
+			} else if( dmd.getNumberOfPlanes() > 8) {
 				// for 32k color
 				imageData = new ImageData(width, height, 24, new PaletteData(0xFF , 0xFF00 , 0xFF0000));
 				for( int x = 0; x < width; x++) {
@@ -133,7 +141,7 @@ public class ClipboardHandler {
 					}
 				}
 			} else {
-				imageData = new ImageData(width, height, dmd.getNumberOfPlanes(), buildPaletteData(actPalette));
+				imageData = new ImageData(width, height, 8, buildPaletteData(actPalette));
 				for( int x = 0; x < width; x++) {
 					for( int y = 0; y < height; y++ ) {
 						if( Rect.selected(sel, x, y) ) { 
@@ -181,18 +189,18 @@ public class ClipboardHandler {
 	public void onCopy(Palette activePalette) {
 		Rect sel = dmdWidget.getSelection();
 		// Convenience
+		this.width = dmd.getWidth();
+		this.height = dmd.getHeight();
 		if( sel == null ) sel = new Rect(0, 0, width, height);
 		clipboard.setContents(
 			new Object[] { 
 					buildImageData(dmd, dmdWidget.isShowMask(), activePalette, sel), 
 					buildFrame(dmd, dmdWidget.isShowMask(), dmdWidget.getSelection() ) },
 			new String[]{ "ImageTransfer", "DmdFrameTransfer" });
-		if( sel != null ) {
-			dx = sel.x1;
-			dy = sel.y1;
-		} else {
-			dy = dx = 0;
-		}
+		dx = sel.x1;
+		dy = sel.y1;
+		dx2 = sel.x2;
+		dy2 = sel.y2;
 	}
 
 	private Frame buildFrame(DMD dmd, boolean showMask, Rect sel) {
@@ -232,17 +240,32 @@ public class ClipboardHandler {
 		Frame frame = (Frame) clipboard.getContents("DmdFrameTransfer");
 		if( frame != null ) {
 			dmd.addUndoBuffer();
-			if (dmdWidget.isShowMask()) {
-				frame.copyToWithMask(dmd.getFrame(), 0b0001);
+			if (dmdWidget.isShowMask() && !dmd.getFrame().mask.locked) {
+				ImageData imageData = (ImageData) clipboard.getContents("ImageTransfer");
+				System.arraycopy(imageData.data, 0, dmd.getFrame().mask.data, 0, dmd.getPlaneSize());
+				//frame.copyToWithMask(dmd.getFrame(), 0b0001);
 			} else {
-		    	if (dmd.getFrame().planes.size() == 24 && frame.planes.size() == 24) {
-		    		for( int i = 0; i < frame.planes.size(); i++) {
-						int size = frame.planes.get(i).data.length;
-						System.arraycopy( frame.planes.get(i).data, 0, dmd.getFrame().planes.get(i).data, 0, size);
-		    		}
-		    	} else {
-		    		frame.copyToWithMask(dmd.getFrame(), dmd.getDrawMask());
-				}
+				if (dx != 0 || dy != 0 || dx2 != width || dy2 !=  height || width != dmd.getWidth() || height != dmd.getHeight()) {
+					// add selection paste here
+					PasteTool pasteTool = new PasteTool(0, width, height,dx,dy);
+					pasteTool.setFrameToPaste(frame);
+					pasteTool.setMaskOnly(dmdWidget.isShowMask());
+					DrawTool lastTool = dmdWidget.getDrawTool();
+					dmdWidget.setDrawTool(pasteTool);
+					pasteTool.pastePos(dx, dy);
+					dmdWidget.setDrawTool(lastTool);
+					dmdWidget.resetSelection();
+					
+				} else {
+			    	if (dmd.getFrame().planes.size() == 24 && frame.planes.size() == 24) {
+			    		for( int i = 0; i < frame.planes.size(); i++) {
+							int size = frame.planes.get(i).data.length;
+							System.arraycopy( frame.planes.get(i).data, 0, dmd.getFrame().planes.get(i).data, 0, size);
+			    		}
+			    	} else {
+			    		frame.copyToWithMask(dmd.getFrame(), dmd.getDrawMask());
+					}
+		    	}
 			}
 		} else {
 			ImageData imageData = (ImageData) clipboard.getContents("ImageTransfer");
@@ -251,11 +274,11 @@ public class ClipboardHandler {
 				log.info("image data depth: {}", imageData.depth);
 				// we need a config option to define if colors are reduced to palette or not
 				BufferedImage bufferedImage = ImageUtil.convert(new Image(Display.getCurrent(),imageData));
-				if( dmd.getNumberOfPlanes() <= 4) {
+				if( dmd.getNumberOfPlanes() <= 6) {
 					ImageUtil.convertToFrameWithPalette(bufferedImage, dmd, palette, true);
 					//dmd.setFrame(res);
 				} else {
-					Frame res = ImageUtil.convertToFrame(bufferedImage, width, height, 8, scale);
+					Frame res = ImageUtil.convertToFrame(bufferedImage, dmd.getWidth(), dmd.getHeight(), 8, scale);
 					dmd.setFrame(res);
 				}
 			}

@@ -40,6 +40,7 @@ public class Commands {
 	public static final String REMOVE_SELECTION = "removeSelection";
 	public static final String DELETE_AUTOSAVE_FILES = "deleteAutosaveFiles";
 	public static final String ADD_KEYFRAME = "addKeyframe";
+	public static final String RESET_HASH = "resetHash";
 	public static final String SET_HASH = "setHash";
 	public static final String HASH_SELECTED = "hashSelected";
 	public static final String DEL_BOOKMARK = "delBookmark";
@@ -70,12 +71,14 @@ public class Commands {
 	public static final String DELETE_RECORDING = "deleteRecording";
 	public static final String RENAME_SCENE = "renameScene";
 	public static final String RENAME_RECORDING = "renameRecording";
+	public static final String RENAME_KEYFRAME = "renameKeyframe";
 	public static final String DEVICE_CONFIGURATION = "deviceConfiguration";
 	public static final String CONFIGURATION = "configuration";
 	public static final String UPLOAD_PALETTE = "uploadPalette";
 	public static final String SAVE_PALETTE = "savePalette";
 	public static final String EXPORT_GO_DMD = "exportGoDmd";
 	public static final String EXPORT_GIF = "exportGif";
+	public static final String EXPORT_RAW = "exportRaw";
 	public static final String SAVE_SINGLE_ANI_WITH_FC = "saveSingleAniWithFC";
 	public static final String SAVE_ANI_WITH_FC = "saveAniWithFC";
 	public static final String LOAD_ANI_WITH_FC = "loadAniWithFC";
@@ -85,6 +88,7 @@ public class Commands {
 	
 	public static final String UNLOCK_SCENE_MASKS = "unlockSceneMasks";
 	public static final String DELETE_UNUSED_SCENES = "deleteUnusedScenes";
+	public static final String SCAN_RECORDING = "scanRecordingKeyframes";
 	public static final String CONVERT_SCENE_TO_RGB = "convertSceneToRGB";
 	public static final String CONVERT_ALL_SCENES_TO_RGB = "convertAllScenesToRGB";
 	public static final String QUANTIZE_SCENE = "quantizeScene";

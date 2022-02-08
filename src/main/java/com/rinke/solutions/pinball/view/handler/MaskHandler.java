@@ -35,7 +35,7 @@ public class MaskHandler extends AbstractCommandHandler implements ViewBindingHa
 	}
 	
 	public void onDetectionMaskActiveChanged(boolean old, boolean n) {
-		if(vm.selectedScene!=null && n) {
+		if(vm.selectedScene!=null && n && vm.selectedScene.actFrame == vm.selectedFrame) {
 			vm.selectedScene.commitDMDchanges(vm.dmd); 
 			vm.setDirty(vm.dirty|vm.selectedScene.isDirty());
 		}
@@ -43,6 +43,7 @@ public class MaskHandler extends AbstractCommandHandler implements ViewBindingHa
 			vm.setLayerMaskEnabled(!n);
 		updateMaskChange(n, true);
 		vm.setShowMask(n);
+		animationHandler.forceRerender();
 	}
 	
 	public void onLayerMaskActiveChanged(boolean old, boolean n) {
@@ -74,7 +75,7 @@ public class MaskHandler extends AbstractCommandHandler implements ViewBindingHa
 		vm.dmd.setMask(mask);
 		vm.setDeleteColMaskEnabled(vm.detectionMaskActive || vm.layerMaskActive);
 		vm.setBtnInvertEnabled(vm.detectionMaskActive || vm.layerMaskActive);
-		animationHandler.forceRerender();
+		//animationHandler.forceRerender();
 		vm.setDmdDirty(true);
 		hashCmdHandler.updateHashes(vm.dmd.getFrame());
 		if (n) {

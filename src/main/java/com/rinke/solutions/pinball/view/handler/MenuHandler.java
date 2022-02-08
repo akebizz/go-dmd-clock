@@ -1,5 +1,7 @@
 package com.rinke.solutions.pinball.view.handler;
 
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.util.Arrays;
 
 import lombok.extern.slf4j.Slf4j;
@@ -13,13 +15,21 @@ import com.rinke.solutions.beans.Value;
 import com.rinke.solutions.pinball.AnimationHandler;
 import com.rinke.solutions.pinball.DMD;
 import com.rinke.solutions.pinball.DmdSize;
+import com.rinke.solutions.pinball.Worker;
+import com.rinke.solutions.pinball.animation.AniWriter;
 import com.rinke.solutions.pinball.animation.Animation;
+import com.rinke.solutions.pinball.animation.CompiledAnimation;
+import com.rinke.solutions.pinball.animation.PinDumpWriter;
+import com.rinke.solutions.pinball.api.BinaryExporter;
+import com.rinke.solutions.pinball.api.BinaryExporterFactory;
 import com.rinke.solutions.pinball.model.Mask;
 import com.rinke.solutions.pinball.model.Palette;
 import com.rinke.solutions.pinball.ui.ConfigDialog;
 import com.rinke.solutions.pinball.ui.ExportGoDmd;
 import com.rinke.solutions.pinball.ui.GifExporter;
+import com.rinke.solutions.pinball.ui.IProgress;
 import com.rinke.solutions.pinball.util.Config;
+import com.rinke.solutions.pinball.util.FileChooserUtil;
 import com.rinke.solutions.pinball.util.MessageUtil;
 import com.rinke.solutions.pinball.view.View;
 import com.rinke.solutions.pinball.view.model.ViewModel;
@@ -46,6 +56,8 @@ public class MenuHandler extends AbstractCommandHandler implements ViewBindingHa
 	
 	@Autowired
 	private AnimationHandler animationHandler;
+	
+	@Autowired FileChooserUtil fileChooserUtil;
 
 	@Value
 	private boolean nodirty; // if set ignore dirty check
@@ -62,6 +74,28 @@ public class MenuHandler extends AbstractCommandHandler implements ViewBindingHa
 			gifExporter.setAni(ani);
 			gifExporter.setPalette(vm.selectedPalette);
 			gifExporter.open();
+		}
+	}
+	
+	public void onExportRaw() {
+		if(vm.selectedScene == null)
+			return;
+		CompiledAnimation cani = vm.selectedScene;
+		if( cani != null ) {
+			int planes = messageUtil.warn(0,
+					"RAW export",
+					"Please select",
+					"number of planes to export",
+					new String[]{"", "2", "4"}, 2) * 2;
+			String filename = fileChooserUtil.choose(SWT.OPEN, null, new String[] { "*.raw" }, new String[] { "RAW file"});
+			int p = filename.lastIndexOf(".");
+			if (p != -1)
+				filename = filename.substring(0, p) + ".raw";
+			else
+				filename = filename + ".raw";
+			IProgress progress = null;
+			PinDumpWriter pinDumpWriter = new PinDumpWriter(cani, filename, planes, progress);
+			pinDumpWriter.run();
 		}
 	}
 
@@ -145,7 +179,6 @@ public class MenuHandler extends AbstractCommandHandler implements ViewBindingHa
 			}
 			vm.setDmdSize(configDialog.getDmdSize());
 			vm.setSrcDmdSize(configDialog.getDmdSize());
-			vm.setScalerType(configDialog.getScalerType());
 		}
 	}
 	

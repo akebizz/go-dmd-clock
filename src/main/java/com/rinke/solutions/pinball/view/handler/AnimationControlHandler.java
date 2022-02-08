@@ -48,6 +48,7 @@ public class AnimationControlHandler extends AbstractCommandHandler implements V
 		} else {
 			vm.setHashVal("-");
 		}
+		animationHandler.forceRerender();
 	}
 
 	private void update(int minFrame, int actFrame, int maxFrame, boolean isPlaying) {
@@ -84,11 +85,14 @@ public class AnimationControlHandler extends AbstractCommandHandler implements V
 	}
 	
 	void commitChanges() {
-		if(vm.selectedScene!=null) {
-			vm.selectedScene.commitDMDchanges(vm.dmd); 
-			vm.setDirty(vm.dirty|vm.selectedScene.isDirty());
+		if (vm.detectionMaskActive) {
+			maskHandler.commitMaskIfNeeded(vm.detectionMaskActive);
+		} else {
+			if(vm.selectedScene!=null) {
+				vm.selectedScene.commitDMDchanges(vm.dmd); 
+				vm.setDirty(vm.dirty|vm.selectedScene.isDirty());
+			}
 		}
-		maskHandler.commitMaskIfNeeded(vm.detectionMaskActive);
 	}
 
 	public void onPrevFrame() {

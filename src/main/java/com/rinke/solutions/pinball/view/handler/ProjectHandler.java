@@ -38,7 +38,6 @@ import com.rinke.solutions.pinball.Constants;
 import com.rinke.solutions.pinball.DMD;
 import com.rinke.solutions.pinball.Dispatcher;
 import com.rinke.solutions.pinball.DmdSize;
-import com.rinke.solutions.pinball.ScalerType;
 import com.rinke.solutions.pinball.Worker;
 import com.rinke.solutions.pinball.animation.AniReader;
 import com.rinke.solutions.pinball.animation.AniWriter;
@@ -662,26 +661,32 @@ public class ProjectHandler extends AbstractCommandHandler {
 		} else {
 			// for all referenced frame mapping we must also copy the frame data as
 			// there are two models
+			
+			int actFrameTmp = 0;
+			if (vm.selectedScene != null)
+				actFrameTmp = vm.selectedScene.actFrame;
+			
 			for (FrameSeq p : frameSeqMap.values()) {
-				CompiledAnimation ani = vm.scenes.get(p.name);			
+				CompiledAnimation ani = vm.scenes.get(p.name);
 				ani.actFrame = 0;
 				for (int i = 0; i <= ani.end; i++) {
 					// copy before exporting
 					Frame frame = new Frame(ani.frames.get(i));
-					// remove planes not in plane mask
-					int pl = 0;
-					for (Iterator<Plane> iter = frame.planes.iterator(); iter.hasNext();) {
-						iter.next();
-						if (((1 << pl) & p.mask) == 0) {
-							iter.remove();
-						}
-						pl++;
-					}
 					if( frame.planes.size() == Constants.TRUE_COLOR_BIT_PER_CHANNEL*3 ) { // reduce 8 bit per color to 5 bit per color
 						log.debug("24 bit scene will reduced to 15 bit on export: {}", ani.getDesc());
+						frame.planes.remove(0); frame.planes.remove(0); frame.planes.remove(0);
 						frame.planes.remove(5); frame.planes.remove(5); frame.planes.remove(5);
 						frame.planes.remove(10); frame.planes.remove(10); frame.planes.remove(10);
-						frame.planes.remove(15); frame.planes.remove(15); frame.planes.remove(15);
+					} else {
+						// remove planes not in plane mask
+						int pl = 0;
+						for (Iterator<Plane> iter = frame.planes.iterator(); iter.hasNext();) {
+							iter.next();
+							if (((1 << pl) & p.mask) == 0) {
+								iter.remove();
+							}
+							pl++;
+						}
 					}
 					// due to a bug in the current firmware, it is mandatory to have a mask in any case
 					if( !frame.hasMask() ) {
@@ -709,6 +714,8 @@ public class ProjectHandler extends AbstractCommandHandler {
 			} catch (IOException e) {
 				throw new RuntimeException("error writing " + filename, e);
 			}
+			if (vm.selectedScene != null)
+				vm.selectedScene.actFrame = actFrameTmp;
 		}		
 	}
 
